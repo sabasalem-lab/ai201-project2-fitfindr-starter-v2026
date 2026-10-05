@@ -64,26 +64,28 @@ and tells the user what to change instead of guessing.
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Searches the listings data for items matching a text description, a requested size, and a maximum price.
+- **Inputs:** `description` (str) — keywords to match against title, description, and style_tags; `size` (str) — the requested size, matched as a substring against the listing's size field; `max_price` (float) — the highest acceptable price, inclusive.
+- **Returns:** A list of listing dicts. Each dict contains `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, `platform`.
+- **When it has nothing:** An empty list `[]`.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Takes a found listing and a wardrobe, and asks the model for outfit pairing ideas using what's already owned.
+- **Inputs:** `new_item` (dict) — a single listing dict, in the same shape `search_listings` returns; `wardrobe` (dict) — a dict with an `items` key holding a list of wardrobe item dicts, each with `id`, `name`, `category`, `colors`, `style_tags`, `notes`.
+- **Returns:** A string containing 2–3 sentences of outfit suggestions, referencing specific wardrobe items by name where relevant.
+- **When it has nothing:** If `wardrobe["items"]` is an empty list, returns general styling advice for the item instead of failing or returning an empty string.
+- **What it does:** Takes a found listing and a wardrobe, and asks the model for outfit pairing ideas using what's already owned.
+- **Inputs:** `new_item` (dict) — a single listing dict, in the same shape `search_listings` returns; `wardrobe` (list of dicts) — each with `id`, `name`, `category`, `colors`, `style_tags`, `notes`.
+- **Returns:** A string containing 2–3 sentences of outfit suggestions, referencing specific wardrobe items by name where relevant.
+- **When it has nothing:** If `wardrobe` is an empty list, returns general styling advice for the item instead of failing or returning an empty string.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
-
----
+- **What it does:** Writes a short, postable caption combining the new item and the suggested outfit.
+- **Inputs:** `outfit` (str) — the outfit suggestion text from `suggest_outfit`; `new_item` (dict) — the same listing dict used above.
+- **Returns:** A single string, 1–3 sentences, written in a casual, social-media-caption tone, mentioning the item by name.
+- **When it has nothing:** If `outfit` is an empty string, returns a caption describing just the item on its own, without outfit pairing language.
 
 ## Planning Loop
 
