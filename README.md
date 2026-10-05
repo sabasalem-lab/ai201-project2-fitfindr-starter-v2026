@@ -39,7 +39,12 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
+A user describes an item they're looking for in plain language - something
+like "a vintage graphic tee under $30, size M". FitFindr searches real
+secondhand listings for matches, works out what the found item would pair
+well with from a small wardrobe, and writes a short caption someone could
+actually post alongside it. If nothing in the listings matches, it stops
+and tells the user what to change instead of guessing.
 
 
 
