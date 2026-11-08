@@ -44,59 +44,33 @@ Given a query that matches no listings, the agent stops before calling
 
 ## 3. Something about state
 
-<!-- YOU WRITE THIS ONE.
-
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
+Given a listing is returned by search_listings, the exact same listing data (including its ID and attributes) is passed to suggest_outfit without being modified — in 5 of 5 tries.
 
 
 **Why this target:**
 
-
+To verify that the agent preserves the original listing data throughout the tool chain without accidentally changing or substituting the selected item.
 
 ---
 
 ## 4. Something about the fit card
 
-<!-- YOU WRITE THIS ONE.
-
-     The fit card calls a model, so the same input can produce different words
-     each time. That's not a bug — it's the nature of the tool. So what would
-     make it acceptable?
-
-     Think about what you'd actually be unhappy to see. A caption that never
-     mentions the price? Two different items producing the same opening
-     sentence? A card longer than a caption anyone would post? Any of those can
-     be turned into a number. -->
-
+Given the same item, 5 separate calls to create_fit_card produce 5 different captions (no two identical), and every caption contains the item's name and price — in 5 of 5 tries.
 
 
 **Why this target:**
 
-
+To verify that the model generates varied captions while consistently retaining the essential item information.
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. Speed, the empty
-     wardrobe path, what happens when the model can't be reached, whether the
-     search respects a price ceiling — anything, as long as it names a number
-     or an observable outcome. -->
-
-
+Given a valid listing is found, the generated fit card contains all four required fields: item name, price, size, and fit recommendation — in 5 of 5 tries.
 
 **Why this target:**
 
-
+To ensure every successful fit card includes all the information needed for the user to evaluate the recommendation.
 
 ---
 
