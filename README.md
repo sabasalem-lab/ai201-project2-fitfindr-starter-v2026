@@ -75,10 +75,7 @@ and tells the user what to change instead of guessing.
 - **Inputs:** `new_item` (dict) — a single listing dict, in the same shape `search_listings` returns; `wardrobe` (dict) — a dict with an `items` key holding a list of wardrobe item dicts, each with `id`, `name`, `category`, `colors`, `style_tags`, `notes`.
 - **Returns:** A string containing 2–3 sentences of outfit suggestions, referencing specific wardrobe items by name where relevant.
 - **When it has nothing:** If `wardrobe["items"]` is an empty list, returns general styling advice for the item instead of failing or returning an empty string.
-- **What it does:** Takes a found listing and a wardrobe, and asks the model for outfit pairing ideas using what's already owned.
-- **Inputs:** `new_item` (dict) — a single listing dict, in the same shape `search_listings` returns; `wardrobe` (list of dicts) — each with `id`, `name`, `category`, `colors`, `style_tags`, `notes`.
-- **Returns:** A string containing 2–3 sentences of outfit suggestions, referencing specific wardrobe items by name where relevant.
-- **When it has nothing:** If `wardrobe` is an empty list, returns general styling advice for the item instead of failing or returning an empty string.
+
 
 ### `create_fit_card`
 
