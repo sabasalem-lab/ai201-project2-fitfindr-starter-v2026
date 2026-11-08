@@ -89,80 +89,63 @@ and tells the user what to change instead of guessing.
 
 ## Planning Loop
 
-<!-- Your branch rule, stated as a rule — the condition AND both paths — plus
-     the file and function that holds it.
-
-     Like this:
-       "If search_listings returns an empty list, put a message in the session
-        and stop. Otherwise take the first result and go to suggest_outfit."
-        — agent.py::run_agent
-
-     The grader checks your code against what you claim here, so the file and
-     function have to be real. -->
-
-**Branch rule:**
+**Branch rule:** If search_listings returns an empty list, the loop puts a message in session["error"] naming what the user could change (the description, size, and/or price ceiling that were in play) and returns the session without calling suggest_outfit. Otherwise, it takes the first result, puts it in session["selected_item"], and continues through suggest_outfit and create_fit_card.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex. parse_query() in agent.py extracts a price ceiling (matching patterns like "under $30") and a size (matching "size M") from the plain-language query, leaving the remainder as the description. I chose regex over asking the model because it's free, deterministic (the same query always parses the same way, which matters for testing the state criterion), and any parsing mistake is visible in the pattern rather than hidden in a model's judgment.
 
-**What moves through the session:** <!-- which fields, in what order -->
-
+**What moves through the session:** query → parsed (description/size/max_price) → search_results → selected_item → outfit_suggestion → fit_card. If the branch triggers early, error is set and outfit_suggestion/fit_card stay None.
 ---
 
 ## Sample Run
 
-<!-- Two things go here.
-
-     1. One FULL query and its output, pasted as text.
-     2. Your three per-tool terminal tests — the command and what it printed. -->
-
 **One full query**
 
-```
-$ python app.py ask '...'
+$ python agent.py
+=== A query the data can match ===
+found: Y2K Baby Tee — Butterfly Print — $18.0 on depop
+outfit: Pair the Y2K butterfly baby tee with your baggy straight-leg jeans and chunky white sneakers for a classic, nostalgic streetwear look. Layer the black cropped zip hoodie over the tee and add the black crossbody bag to complete an easy, balanced outfit with your wide-leg khaki trousers.
+fit card: Just scored this adorable Y2K butterfly baby tee on Depop for only $18! Obsessed with the ultimate nostalgic streetwear vibe. Already planning to wear it with baggy denim and chunky sneakers. 🦋✨
 
-```
+=== A query it can’t ===
+stopped: Nothing in the listings matched description ‘designer ballgown’, size XXS, under $5. Things to try: try broader or different keywords; drop the size filter, or try a neighbouring size; raise the price ceiling above $5.
+fit_card is None — it should still be None here
+
 
 **The three tools, tested one at a time**
 
-```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+$ python test_tools.py
+=== search_listings ===
+Found 6 result(s)
 
-```
+Y2K Baby Tee — Butterfly Print ($18.0)
+Graphic Tee — 2003 Tour Bootleg Style ($24.0)
+Mesh Long-Sleeve Top — Black ($15.0)
+Vintage Band Tee — Faded Grey ($19.0)
+Low-Rise Cargo Pants — Khaki ($27.0)
+Vintage Graphic Hoodie — Faded Black ($26.0)
 
-```
-$ python -c "from tools import suggest_outfit; ..."
+=== suggest_outfit ===
+Outfit 1: Casual Streetwear
+Pair the vintage Levi’s 501 jeans with the white ribbed tank top and chunky white sneakers, layering the black cropped zip hoodie on top for an effortless, everyday look. Accessorize with the black crossbody bag to complete the casual aesthetic.
 
-```
+Outfit 2: Edgy Vintage
+Combine the medium wash jeans with the oversized grey crewneck sweatshirt and black combat boots for a relaxed yet structured vibe. Throw on the vintage black denim jacket and thread the brown leather belt through the loops to tie the textures together.
 
-```
-$ python -c "from tools import create_fit_card; ..."
+=== create_fit_card ===
+Found these vintage Levi’s 501 jeans for just $38 and I’m literally never taking them off. Obsessed with the medium wash for putting together that effortless, edgy streetwear vibe. Just listed them on my depop if you need a new go-to pair!
 
-```
-
----
 
 ## How I Used AI
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
-
-     "I used Claude to help me code" is not enough.
-
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
-
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+I asked Claude to implement search_listings, suggest_outfit, and create_fit_card based on my own Tool Inventory specs. It built a size-matching approach using whole-token comparison (so "M" matches "S/M" but doesn't falsely match inside "US 9"), which matched the exact warning in the tools.py docstring about naive substring matching.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+Claude's first version of search_listings put `import re` inside an if-block, which caused an UnboundLocalError when the function reached a later line using `re` outside that block. I had Claude explain the bug and fix it by moving the import to the top of the file.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
