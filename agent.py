@@ -85,6 +85,29 @@ def _nothing_found_message(parsed: dict) -> str:
 
 # ── planning loop ─────────────────────────────────────────────────────────────
 
+def _search_via_mcp_or_direct(parsed: dict) -> list[dict]:
+    """
+    Call search_listings through MCP, falling back to the direct call if the
+    server isn't reachable. This is the unit 4 MCP rewire — the agent no
+    longer calls the tool function directly; it goes through the protocol.
+    """
+    try:
+        from mcp_client import call_tool
+        results = call_tool(
+            "search_listings",
+            {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            },
+        )
+        return results if results is not None else []
+    except Exception:
+        return search_listings(
+            parsed["description"], parsed["size"], parsed["max_price"]
+        )
+
+
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
     Run the loop once and return the finished session.
@@ -97,41 +120,71 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     session = new_session(query, wardrobe)
     steps = 0
 
-    steps += 1
-    trace.check_iterations(steps)
-    parsed = parse_query(query)
-    session["parsed"] = parsed
+    try:
+        steps += 1
+        trace.check_iterations(steps)
+        parsed = parse_query(query)
+        session["parsed"] = parsed
+        trace.step("parse_query", inputs=query, returned=parsed)
 
-    steps += 1
-    trace.check_iterations(steps)
-    results = search_listings(
-        parsed["description"], parsed["size"], parsed["max_price"]
-    )
-    session["search_results"] = results
+        steps += 1
+        trace.check_iterations(steps)
+        results = _search_via_mcp_or_direct(parsed)
+        session["search_results"] = results
+        trace.step(
+            "search_listings (via MCP)",
+            inputs=parsed,
+            returned=results,
+            note=f"{len(results)} match(es)",
+        )
 
-    # ── THE BRANCH ──────────────────────────────────────────────────────────
-    if not results:
-        session["error"] = _nothing_found_message(parsed)
-        return session
+        # ── THE BRANCH ──────────────────────────────────────────────────────
+        if not results:
+            session["error"] = _nothing_found_message(parsed)
+            trace.step(
+                "branch",
+                note="search returned []: stopping before suggest_outfit",
+            )
+            return session
 
-    steps += 1
-    trace.check_iterations(steps)
-    session["selected_item"] = results[0]
+        steps += 1
+        trace.check_iterations(steps)
+        session["selected_item"] = results[0]
+        trace.step("select_item", returned=session["selected_item"])
 
-    steps += 1
-    trace.check_iterations(steps)
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"], session["wardrobe"]
-    )
+        steps += 1
+        trace.check_iterations(steps)
+        session["outfit_suggestion"] = suggest_outfit(
+            session["selected_item"], session["wardrobe"]
+        )
+        trace.step(
+            "suggest_outfit",
+            inputs=session["selected_item"],
+            returned=session["outfit_suggestion"],
+        )
 
-    steps += 1
-    trace.check_iterations(steps)
-    session["fit_card"] = create_fit_card(
-        session["outfit_suggestion"], session["selected_item"]
-    )
+        steps += 1
+        trace.check_iterations(steps)
+        session["fit_card"] = create_fit_card(
+            session["outfit_suggestion"], session["selected_item"]
+        )
+        trace.step(
+            "create_fit_card",
+            inputs=session["selected_item"],
+            returned=session["fit_card"],
+        )
+
+    except ModelUnavailable as exc:
+        session["error"] = (
+            f"The model couldn't be reached, so the outfit and caption steps "
+            f"didn't run. The search worked — "
+            f"{len(session['search_results'])} listing(s) were found. "
+            f"Check GEMINI_API_KEY in your .env, then run the same query "
+            f"again.\nWhat the service said: {exc}"
+        )
+        trace.step("model unavailable", note="stopping, search results kept")
 
     return session
-
 
 # ── running it directly ───────────────────────────────────────────────────────
 

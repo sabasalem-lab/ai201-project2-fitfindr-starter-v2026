@@ -66,39 +66,30 @@ from tools import search_listings as _search_listings_impl  # noqa: F401 — you
 # CallToolRequest" and the output you actually care about scrolls away.
 mcp = FastMCP("fitfindr", log_level="WARNING")
 
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Search secondhand clothing listings for items matching a text description,
+    and optionally a size and a maximum price in whole dollars.
 
-# ── TODO: uncomment and fill this in ──────────────────────────────────────────
-#
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
-#
-# ──────────────────────────────────────────────────────────────────────────────
-#
-# Two notes on the block above.
-#
-# The registered name is the *function* name — so the block above registers
-# "search_listings", which is exactly what call_tool("search_listings", ...)
-# asks for. That is also why the import at the top of this file brings the real
-# implementation in under an alias: without it, the registered function and the
-# one it calls would be the same name, and the tool would call itself.
-#
-# FastMCP builds the input schema from your type hints, which is why the hints
-# are not optional here. `description: str` becomes a required string;
-# `max_price: float | None = None` becomes an optional number. Getting these
-# wrong is the most common reason a call is rejected.
+    description: keywords to match against the listing's title, description,
+        and style tags (e.g. "vintage graphic tee").
+    size: a size string (e.g. "M", "S/M", "W30"). Matched as a whole token
+        against the listing's size field, case-insensitive. Omit to skip
+        size filtering.
+    max_price: the highest acceptable price, in whole dollars, inclusive.
+        Omit to skip price filtering.
 
+    Returns a list of matching listing dicts, best match first, each with
+    id, title, description, category, style_tags, size, condition, price,
+    colors, brand, and platform. Returns an empty list — not None, not an
+    error — when nothing matches.
+    """
+    return _search_listings_impl(description, size, max_price)
 
 if __name__ == "__main__":
     mcp.run()
