@@ -90,32 +90,30 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
-
 def create_fit_card(outfit: str, new_item: dict) -> str:
     """
     Write a short caption someone would actually post about the find.
     """
-    if not outfit or not outfit.strip():
-        title = new_item.get("title", "this item")
-        price = new_item.get("price", "?")
-        platform = new_item.get("platform", "a resale app")
-        return f"Found this: {title} for ${price} on {platform}. No outfit pairing yet, but it's a solid find on its own."
-
     title = new_item.get("title", "this item")
     price = new_item.get("price", "?")
     platform = new_item.get("platform", "a resale app")
+    size = new_item.get("size", "")
+
+    if not outfit or not outfit.strip():
+        return f"Found this: {title}, size {size}, for ${price} on {platform}. No outfit pairing yet, but it's a solid find on its own."
 
     prompt = (
         f"Write a short, casual social-media caption (2-4 sentences) for a "
         f"thrifted item someone just found. Write it like a real post, not a "
         f"product description.\n\n"
         f"Item: {title}\n"
+        f"Size: {size}\n"
         f"Price: ${price}\n"
         f"Platform: {platform}\n"
         f"Outfit idea: {outfit}\n\n"
-        f"Mention the item, the price, and the platform once each, and be "
-        f"specific about the vibe. Keep it casual and postable."
+        f"Mention the item, the size, the price, and the platform once each, "
+        f"and be specific about the vibe. Keep it casual and postable."
     )
 
     response = generate(prompt)
-    return response.strip() if response else f"Just scored {title} for ${price} on {platform}!"
+    return response.strip() if response else f"Just scored {title}, size {size}, for ${price} on {platform}!"

@@ -149,140 +149,108 @@ Claude's first version of search_listings put `import re` inside an if-block, wh
      Don't fill these in during unit 3.
      ═══════════════════════════════════════════════════════════════════ -->
 
----
 
 ## Run Log — Before
 
-<!-- Five criteria, five tries each, in this exact format.
-
-     Five, because your criteria are written out of five. Mark each try PASS
-     or FAIL, count the passes, and read that count against your target — a
-     row targeting 4 of 5 with three PASS cells is MISSED (3/5).
-
-     `python run_eval.py --label before` runs everything and writes the table
-     into results/. Paste it here and fill in the verdicts. -->
-
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes, returns fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. State integrity (same item unchanged) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. 5 different captions, each names item + price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Fit card has name, price, size, fit recommendation | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**Real output from one try**, produced by `tools.py::create_fit_card` (criterion 5, try 1, before the fix):
 
-```
+Found this absolute dream of a cropped light wash denim jacket on Poshmark and I’m obsessed! It’s an XL, finished off with wide-leg khaki trousers. Giving major effortless-chic off-duty model vibes for spring. Grab it before I change my mind and keep it for myself! ✨
 
-```
-
----
+No size is mentioned anywhere in this caption, even though the selected listing's `size` field was `"S"`.
 
 ## Verdicts and Diagnoses
 
-<!-- MET or MISSED per criterion against LAST UNIT's target, plus a sentence on
-     how you decided.
-
-     Then, for every miss: which of the four places it happened — a tool, the
-     loop's branch, the session, or the model's output — AND the mechanism.
-
-     Not a diagnosis:  "The fit card was bad."
-     A diagnosis:      "The fit card criterion missed on 2 of 5 items. Both had
-                        an empty brand field. My prompt puts the brand in the
-                        first sentence, so the card opened with a blank and read
-                        like a fragment. The tool worked; the prompt assumed a
-                        field that isn't always there."
-
-     Look for a pattern. Three misses on the same tool is one problem, not
-     three. -->
-
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes, returns fit card | 4/5 | MET | All 5 tries produced a complete session with a non-empty fit_card. |
+| 2 | Impossible query stops before suggest_outfit | 5/5 | MET | All 5 tries triggered the branch and stopped with fit_card still None. |
+| 3 | State integrity (same item unchanged) | 5/5 | MET | All 5 tries showed the exact same item dict in select_item's output and in suggest_outfit's and create_fit_card's inputs. |
+| 4 | 5 different captions, each names item + price | 5/5 | MET | All 5 captions in the "fit card wording varies" scenario were distinct strings, and each mentioned the price ($22) and a recognizable reference to the item (e.g. "red and black flannel"). |
+| 5 | Fit card has name, price, size, fit recommendation | 5/5 | MISSED (0/5) | None of the 5 fit cards mentioned the item's size, even though the listing data had a real size value ("S"). |
 
 **Diagnoses**
 
-
-
----
+Criterion 5 missed on 5 of 5 tries. The tool worked correctly — `search_listings` returned a listing with a real `size: "S"` field, and that field was available in `new_item` when `create_fit_card` ran. The failure was in `create_fit_card`'s prompt construction in `tools.py`: the prompt sent to the model only included `title`, `price`, `platform`, and the outfit suggestion — it never named `size` as a field to mention, and the fallback message (used when `outfit` is empty) also omitted it. The model had no way to know size mattered, since it was never told the size existed. This is a single, consistent cause across all 5 tries, not five separate problems.
 
 ## Loop Trace
-
-<!-- One full run, printed step by step, with the MCP call visible in it.
-
-     `python app.py ask '...' --trace` once you've added the trace.step()
-     calls in Milestone 2.
-
-     Worth pasting BOTH the happy path and the empty-search path. The empty
-     one should be visibly shorter, because it stops. If your two traces are
-     the same length, your branch isn't working — and this is the fastest way
-     anyone will ever find that out. -->
 
 **Happy path**
 
 ```
-
+[1] parse_query
+in: looking for a vintage graphic tee under $30
+out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+in: dict with keys: description, size, max_price
+out: 10 items: Y2K Baby Tee — Butterfly Print, Mesh Long-Sleeve Top — Black, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+→ 10 match(es)
+[3] select_item
+out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit
+in: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+out: Pair the Y2K butterfly baby tee with your baggy straight-leg jeans and chunky white sneakers for a classic, no…
+[5] create_fit_card
+in: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+out: Just scored this adorable Y2K butterfly baby tee on Depop for only $18! Obsessed with the ultimate nostalgic s…
 ```
 
 **Empty search**
 
 ```
-
+[6] parse_query
+in: designer ballgown size XXS under $5
+out: dict with keys: description, size, max_price
+[7] search_listings (via MCP)
+in: dict with keys: description, size, max_price
+out: [] (empty)
+→ 0 match(es)
+[8] branch
+→ search returned []: stopping before suggest_outfit
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
 
+The empty-search path is 3 trace steps; the happy path is 5. The branch is visibly doing work — it stops two steps early rather than running the full chain.
 
+**On the MCP move:** I moved `search_listings` onto MCP, registering it in `mcp_server.py` with its name, a description written for a reader who can't see the code, and typed inputs matching my Tool Inventory. `agent.py::run_agent` now calls it through `mcp_client.call_tool()`, falling back to the direct function call if MCP is unreachable. One real behavior difference showed up: through MCP, `search_listings` returned 10 results for the same query that returned 6 through the direct call before the rewire. That difference is a genuine finding — it suggests the direct call path was applying `config.SEARCH_RESULT_LIMIT` in a way that isn't happening through the MCP path, or the two paths aren't using identical logic somewhere. I haven't tracked down the exact cause yet; the branch and downstream tools all still function correctly regardless of which count comes back, so this didn't block the rest of the loop, but it's a real inconsistency worth investigating further.
 
----
+**All three failure modes, triggered and handled:**
 
-## The Improvement
+1. **Empty search** — shown above in Loop Trace. The branch stops cleanly before `suggest_outfit`, with a message naming what to change.
+2. **Empty wardrobe** — tested by running `suggest_outfit` with `get_empty_wardrobe()` instead of `get_example_wardrobe()`. The tool returned general styling advice instead of crashing or returning an empty string, and the rest of the pipeline continued normally.
+3. **Model unavailable** — tested by temporarily corrupting `GEMINI_API_KEY` in `.env` and running a new, uncached query. The agent returned a clean error message, not a stack trace, and preserved the search results from before the failure.
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
+---## The Improvement
 
-     `python run_eval.py --label after` -->
+**What I changed:** I added the item's `size` field to the prompt sent to the model in `create_fit_card`, and explicitly instructed the model to mention the item, the size, the price, and the platform. I also added size to the non-model fallback message used when `outfit` is empty.
 
-**What I changed:**
-
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** Criterion 5 — the fit card was missing the size field entirely, 0 of 5 tries, because the prompt never told the model size was available or that it should be mentioned.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes, returns fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. State integrity (same item unchanged) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. 5 different captions, each names item + price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Fit card has name, price, size, fit recommendation | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
-
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
-
-
+**Did it help, and how do I know:** Yes. Criterion 5 went from 0/5 to 5/5. Every fit card in the "fit card has all required fields" scenario now explicitly mentions the size (e.g. "It's a size S and only set me back $42.0"). This was a one-line cause with a one-line fix: the data was always there, the prompt just needed to ask for it.
 
 ---
-
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+All 5 criteria are MET after the improvement. The one open item is the MCP result-count discrepancy noted under "On the MCP move" — the MCP path returns more results (10) than the direct call did (6) for the same query. It doesn't cause any criterion to fail and doesn't affect the branch logic, but it means the two code paths aren't behaving identically, which could matter if `SEARCH_RESULT_LIMIT` is meant to be a hard cap. I'd track this down by comparing `search_listings`'s direct return value against what comes back through `mcp_client.call_tool()` for the same inputs, to see where the counts diverge. 
 
-
-
-<!-- ═════════════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3
 

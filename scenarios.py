@@ -35,18 +35,33 @@ SCENARIOS = [
         "wardrobe": "empty",
         "criterion": None,
     },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
+
+        {
+        # Any normal matching query — criterion 3 checks that the item in
+        # search_results[0] is the exact same one that reaches selected_item
+        # and gets passed to suggest_outfit, unmodified.
+        "name": "state integrity check",
+        "query": "vintage graphic tee under $30",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+    {
+        # Same query, run multiple times (run_eval.py's 5 tries handles the
+        # repetition) — criterion 4 checks the 5 resulting fit cards are all
+        # different from each other but each contains the item's name and price.
+        "name": "fit card wording varies",
+        "query": "oversized flannel shirt under $25",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+    {
+        # Criterion 5 checks the fit card contains all 4 required fields:
+        # item name, price, size, and fit recommendation.
+        "name": "fit card has all required fields",
+        "query": "denim jacket under $50",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
 ]
 
 WARDROBES = ("example", "empty")
