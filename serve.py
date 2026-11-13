@@ -33,9 +33,12 @@ then deploy it. A structured log you were handed teaches you nothing about
 what belongs in one — and the timing field is the one everybody skips.
 """
 
+import json
 import os
 import sys
 import threading
+import time
+from datetime import datetime, timezone
 
 # config first, and before anything that talks to the model: it loads your .env
 # and fixes the Windows console encoding for every module that imports it.
@@ -44,10 +47,20 @@ import config  # noqa: F401
 from flask import Flask, jsonify, request
 
 from agent import run_agent
+import generate
 from utils.data_loader import get_example_wardrobe
 
 app = Flask(__name__)
+LOG_FILE = config.ROOT / "logs" / "runs.jsonl"
 
+
+def log_run(**fields):
+    entry = {"timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"), **fields}
+    line = json.dumps(entry, ensure_ascii=False)
+    LOG_FILE.parent.mkdir(exist_ok=True)
+    with LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+    print(line, flush=True)
 
 # ── one request at a time ─────────────────────────────────────────────────────
 # Here's why this exists.
@@ -96,27 +109,71 @@ def health():
     """Is the server awake? A host pings something like this to find out."""
     return jsonify({"status": "ok"})
 
-
 @app.post("/ask")
 def ask():
-    """
-    Run the agent on one query.
-
-    In:   {"query": "...", "wardrobe": {...}}   wardrobe optional — leave it
-                                                out and you get the same
-                                                example wardrobe the CLI uses.
-    Out:  the session dict from run_agent(), as JSON.
-    """
+    started = time.perf_counter()
     payload = request.get_json(silent=True) or {}
     query = (payload.get("query") or "").strip()
+
     if not query:
-        # 400 rather than a stack trace: the caller can act on this one.
+        log_run(
+            route="/ask", query=query, outcome="bad_request", status=400,
+            duration_ms=round((time.perf_counter() - started) * 1000),
+            error="missing or empty query",
+        )
         return jsonify({"error": "Send JSON with a 'query' field, e.g. "
                                  '{"query": "vintage graphic tee under $30"}'}), 400
 
     wardrobe = payload.get("wardrobe")
     if not isinstance(wardrobe, dict):
         wardrobe = get_example_wardrobe()
+
+    if _one_at_a_time.locked():
+        print(
+            "  [serve] another request is still running. This one is waiting "
+            "its turn — serve.py handles one at a time, on purpose.",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    failure = None
+    session = None
+    calls_used = 0
+    tokens_used = 0
+    with _one_at_a_time:
+        calls_before = generate.call_count()
+        tokens_before = generate.token_counts()["total"]
+        try:
+            session = run_agent(query, wardrobe)
+        except Exception as exc:  # noqa: BLE001
+            failure = f"{type(exc).__name__}: {exc}"
+        calls_used = generate.call_count() - calls_before
+        tokens_used = generate.token_counts()["total"] - tokens_before
+
+    duration_ms = round((time.perf_counter() - started) * 1000)
+
+    if failure is not None:
+        log_run(
+            route="/ask", query=query, outcome="crashed", status=500,
+            duration_ms=duration_ms, model_calls=calls_used,
+            tokens=tokens_used, error=failure,
+        )
+        return jsonify({"error": failure}), 500
+
+    results = session.get("search_results") or []
+    item = session.get("selected_item") or {}
+    if session.get("error"):
+        outcome = "no_results" if not results else "model_error"
+    else:
+        outcome = "ok"
+
+    log_run(
+        route="/ask", query=query, outcome=outcome, status=200,
+        duration_ms=duration_ms, model_calls=calls_used, tokens=tokens_used,
+        results_found=len(results), selected=item.get("title"),
+        error=session.get("error"),
+    )
+    return jsonify(session)
 
     # A queued request should look like a queued request. Without this the
     # second caller just sits there, and "slow" and "waiting its turn" are
@@ -174,4 +231,5 @@ if __name__ == "__main__":
     )
     print("Ctrl-C to stop.\n")
 
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    host = os.getenv("HOST", "127.0.0.1")
+    app.run(host=host, port=port, debug=debug)
