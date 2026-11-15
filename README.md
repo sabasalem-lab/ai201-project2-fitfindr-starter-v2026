@@ -298,3 +298,15 @@ All 5 criteria are MET after the improvement. The one open item is the MCP resul
 Out of scope: no changes to the agent loop, the tools or MCP; no new features; no hosting (Render's free tier needs a card, so I run locally, Path B); no queue or concurrency work.
 
 **Running It:** Path B, local with logs. Start command, environment and the committed run record are in `RUNNING.md`.
+
+**Run Log and Verdicts**
+
+Three trials of the same 10 requests (6 matching, 1 no-results, 3 invalid), cache off, nothing changed between trials. The model-error run and a 10th invalid attempt were separate single runs.
+
+| Criterion | Target | Trial 1 | Trial 2 | Trial 3 | Verdict |
+|---|---|---|---|---|---|
+| 1. One log record per request | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 2. Invalid request: 400, 0 calls, 0 tokens | 10 of 10 attempts | 3/3 | 3/3 | 3/3 + 1 extra = 10/10 | MET |
+| 3. Successful requests ≤ 15 s (cache off) | 8 of 10 | 6/6 | 6/6 | 6/6 (18/18 total; slowest 8.1 s) | MET |
+| 4. model_calls and tokens valid; 0/0 on no-results | all records | 10/10 | 10/10 | 10/10 | MET |
+| 5. Broken key → one `model_error` record, error set, no fit card | 1 of 1 | — | — | 1/1 (separate run) | MET |
