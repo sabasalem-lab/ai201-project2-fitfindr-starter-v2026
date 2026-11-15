@@ -221,6 +221,13 @@ if __name__ == "__main__":
     # and a deployed app with it on is a stranger's shell. Set AI201_DEBUG=1 in
     # your own terminal when you want the reloader.
     debug = os.getenv("AI201_DEBUG", "0") == "1"
+        # Warm up the model client so the first request doesn't pay its setup cost.
+    try:
+        import generate as _warm
+        _warm.generate("Reply with one word: ready", cache=False, temperature=0.0)
+        print("[serve] model client warmed up")
+    except Exception as exc:  # noqa: BLE001 — a failed warm-up must not stop the server
+        print(f"[serve] warm-up failed, continuing anyway: {exc}")
 
     print(f"\nFitFindr is listening on http://localhost:{port}")
     print("It runs one request at a time — a second one waits for the first.")
