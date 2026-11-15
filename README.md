@@ -310,3 +310,5 @@ Three trials of the same 10 requests (6 matching, 1 no-results, 3 invalid), cach
 | 3. Successful requests ≤ 15 s (cache off) | 8 of 10 | 6/6 | 6/6 | 6/6 (18/18 total; slowest 8.1 s) | MET |
 | 4. model_calls and tokens valid; 0/0 on no-results | all records | 10/10 | 10/10 | 10/10 | MET |
 | 5. Broken key → one `model_error` record, error set, no fit card | 1 of 1 | — | — | 1/1 (separate run) | MET |
+
+**Instrumentation:** Each record in `logs/runs.jsonl` holds: timestamp, route, query, outcome (`ok` / `no_results` / `model_error` / `bad_request` / `crashed`), HTTP status, duration_ms, model_calls, tokens, results_found, selected item, and error. Ten entries from trial 1 (before the improvement):
