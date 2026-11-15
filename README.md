@@ -287,3 +287,14 @@ All 5 criteria are MET after the improvement. The one open item is the MCP resul
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+
+## Capstone
+
+**What This Extends:** FitFindr (Units 3-4): the agent that searches secondhand listings, suggests an outfit from the user's wardrobe, and writes a fit card. New in this unit: structured logging and timing around the HTTP service (`serve.py`), a documented run path (`RUNNING.md`), and a measured cost per run.
+
+**The Shape:** Shape A (deploy and instrument). `serve.py` now writes one JSON record per request to `logs/runs.jsonl`: timestamp, route, query, outcome (`ok`, `no_results`, `model_error`, `bad_request`, `crashed`), HTTP status, duration in ms, model calls, tokens, results found, selected item, and error. I log the outcome separately from the HTTP status because the agent returns status 200 even when it stopped early with an error, so the status alone would hide those runs.
+
+Out of scope: no changes to the agent loop, the tools or MCP; no new features; no hosting (Render's free tier needs a card, so I run locally, Path B); no queue or concurrency work.
+
+**Running It:** Path B, local with logs. Start command, environment and the committed run record are in `RUNNING.md`.
