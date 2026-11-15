@@ -105,3 +105,22 @@ To ensure every successful fit card includes all the information needed for the 
      A number you missed stays where it is, gets diagnosed, and gets a fix
      attempted. That's where the points are.
      ───────────────────────────────────────────────────────────────────────── -->
+
+
+## Capstone criteria
+
+1. Logging reliability
+Criterion: In 10 consecutive requests, every request must produce exactly one corresponding JSON record in `logs/runs.jsonl`. The 10 requests must include at least one successful request, one no-results query, and one empty query.
+Why this target: Logging is a major part of my capstone extension. Testing different request outcomes ensures that both successful and unsuccessful requests are recorded reliably. Missing or duplicated records would make performance evaluation less trustworthy.
+2. Invalid request handling
+Criterion: An empty query or a request with a missing query field must return an HTTP 400 response in all 10 test attempts. Each attempt must be recorded in the log with `model_calls: 0` and `tokens: 0`.
+Why this target: Invalid requests should be rejected before reaching the model. This prevents unnecessary API usage and makes the system's behavior predictable.
+3. Request execution time
+Criterion: With caching disabled, at least 8 out of 10 successful requests must complete within 15 seconds, measured using the `duration_ms` field in `logs/runs.jsonl`.
+Why this target: Since the system makes external model API calls, response time affects usability. A 15-second limit provides a measurable performance target while allowing some variation in API response times.
+4. Model call and token tracking
+Criterion: Every completed request must have `model_calls` and `tokens` fields containing nonnegative integer values in its log record. A no-results request that does not call the model must record `model_calls: 0` and `tokens: 0`.
+Why this target: Tracking model calls and tokens helps measure API usage and understand the cost of running the system. Recording zero usage for requests that do not require the model is just as important as recording actual usage.
+5. Model/API failure handling
+Criterion: When the model API is unavailable, tested by intentionally changing one character of the API key, the application must record exactly one log entry with `outcome: "model_error"`. The response must contain an error field and must not return a fit card as a successful result.
+Why this target: External APIs can become unavailable or authentication can fail. The application should identify these situations, communicate the error, and preserve the failure information in its logs instead of incorrectly reporting a successful result.

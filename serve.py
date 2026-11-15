@@ -119,6 +119,7 @@ def ask():
         log_run(
             route="/ask", query=query, outcome="bad_request", status=400,
             duration_ms=round((time.perf_counter() - started) * 1000),
+            model_calls=0, tokens=0,
             error="missing or empty query",
         )
         return jsonify({"error": "Send JSON with a 'query' field, e.g. "
