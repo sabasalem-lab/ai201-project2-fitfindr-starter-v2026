@@ -246,3 +246,40 @@ history is what shows your criteria existed before your results did.
 units.
 
 `results/` is deliberately **not** in `.gitignore`.
+
+---
+
+## Capstone — the run path (Path B, local with logs)
+
+This system runs locally. One command starts it; every request writes a structured record to `logs/runs.jsonl`.
+
+**Environment:**
+- Python 3.12 (3.11-3.13 supported, not 3.14)
+- Dependencies pinned in `requirements.txt`
+- A `.env` file with `GEMINI_API_KEY` (copy `.env.example` and paste your key)
+- No model files on disk — the model is called over the API
+
+**Start it (Windows PowerShell):**
+
+```powershell
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python serve.py
+```
+
+**Send it a request (second terminal, one line):**
+
+```powershell
+curl.exe -X POST http://localhost:5000/ask -H "Content-Type: application/json" -d '{\"query\": \"vintage graphic tee under $30\"}'
+```
+
+**For measured runs, start with the cache off** so every run makes real model calls:
+
+```powershell
+$env:AI201_CACHE="0"
+python serve.py
+```
+
+Every request appends one JSON line to `logs/runs.jsonl` (committed, on purpose). Fields: timestamp, route, query, outcome, status, duration_ms, model_calls, tokens, results_found, selected, error.
