@@ -299,16 +299,56 @@ Out of scope: no changes to the agent loop, the tools or MCP; no new features; n
 
 **Running It:** Path B, local with logs. Start command, environment and the committed run record are in `RUNNING.md`.
 
+
+**Instrumentation:** Each record in `logs/runs.jsonl` holds: timestamp, route, query, outcome (`ok` / `no_results` / `model_error` / `bad_request` / `crashed`), HTTP status, duration_ms, model_calls, tokens, results_found, selected item, and error. Ten entries from trial 1 (before the improvement):
+
+```json
+{"timestamp": "2026-11-15T05:51:58+00:00", "route": "/ask", "query": "vintage graphic tee under $30", "outcome": "ok", "status": 200, "duration_ms": 8073, "model_calls": 2, "tokens": 541, "results_found": 10, "selected": "Y2K Baby Tee — Butterfly Print", "error": null}
+{"timestamp": "2026-11-15T05:52:03+00:00", "route": "/ask", "query": "90s track jacket in size M", "outcome": "ok", "status": 200, "duration_ms": 4112, "model_calls": 2, "tokens": 530, "results_found": 10, "selected": "90s Track Jacket — Navy/White Stripe", "error": null}
+{"timestamp": "2026-11-15T05:52:07+00:00", "route": "/ask", "query": "silk slip dress in midi length under $40", "outcome": "ok", "status": 200, "duration_ms": 3716, "model_calls": 2, "tokens": 545, "results_found": 10, "selected": "90s Silk Slip Dress — Floral, Midi Length", "error": null}
+{"timestamp": "2026-11-15T05:52:10+00:00", "route": "/ask", "query": "platform sneakers size 8", "outcome": "ok", "status": 200, "duration_ms": 3367, "model_calls": 2, "tokens": 547, "results_found": 1, "selected": "Platform Sneakers — White Chunky Sole", "error": null}
+{"timestamp": "2026-11-15T05:52:13+00:00", "route": "/ask", "query": "denim jacket under $50", "outcome": "ok", "status": 200, "duration_ms": 2783, "model_calls": 2, "tokens": 469, "results_found": 7, "selected": "Denim Jacket — Light Wash, Cropped", "error": null}
+{"timestamp": "2026-11-15T05:52:17+00:00", "route": "/ask", "query": "oversized flannel shirt under $25", "outcome": "ok", "status": 200, "duration_ms": 3332, "model_calls": 2, "tokens": 564, "results_found": 5, "selected": "Oversized Flannel Shirt — Plaid Red/Black", "error": null}
+{"timestamp": "2026-11-15T05:52:19+00:00", "route": "/ask", "query": "designer ballgown size XXS under $5", "outcome": "no_results", "status": 200, "duration_ms": 1438, "model_calls": 0, "tokens": 0, "results_found": 0, "selected": null, "error": "Nothing in the listings matched description 'designer ballgown', size XXS, under $5. Things to try: try broader or different keywords; drop the size filter, or try a neighbouring size; raise the price ceiling above $5."}
+{"timestamp": "2026-11-15T05:52:19+00:00", "route": "/ask", "query": "", "outcome": "bad_request", "status": 400, "duration_ms": 0, "model_calls": 0, "tokens": 0, "error": "missing or empty query"}
+{"timestamp": "2026-11-15T05:52:19+00:00", "route": "/ask", "query": "", "outcome": "bad_request", "status": 400, "duration_ms": 0, "model_calls": 0, "tokens": 0, "error": "missing or empty query"}
+{"timestamp": "2026-11-15T05:52:20+00:00", "route": "/ask", "query": "", "outcome": "bad_request", "status": 400, "duration_ms": 0, "model_calls": 0, "tokens": 0, "error": "missing or empty query"}
+```
+
+A failed run, triggered with a deliberately broken API key:
+
+```json
+{"timestamp": "2026-11-15T06:01:24+00:00", "route": "/ask", "query": "vintage graphic tee under $30", "outcome": "model_error", "status": 200, "duration_ms": 4306, "model_calls": 1, "tokens": 0, "results_found": 10, "selected": "Y2K Baby Tee — Butterfly Print", "error": "The model couldn't be reached, so the outfit and caption steps didn't run. The search worked — 10 listing(s) were found. Check GEMINI_API_KEY in your .env, then run the same query again.\nWhat the service said: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com."}
+```
+
+**What It Costs:** Measured from the 18 successful runs across the three before-trials (cache off): an average of 559 tokens and 3.6 seconds of wall-clock time per run, read from the `tokens` and `duration_ms` fields in `logs/runs.jsonl`. Gemini's free tier bills $0, so the real costs are tokens and time. At 100 requests a day: 100 × 559 = 55,900 tokens/day and about 6 minutes of total request time — but the free tier's 15-requests-per-minute limit, at 2 calls per run, caps throughput at ~7 runs/minute, which is the binding constraint before tokens are.
+
 **Run Log and Verdicts**
 
-Three trials of the same 10 requests (6 matching, 1 no-results, 3 invalid), cache off, nothing changed between trials. The model-error run and a 10th invalid attempt were separate single runs.
+Three trials of the same 10 requests (6 matching, 1 no-results, 3 invalid), cache off, nothing changed between trials. Criterion 5 was a separate single run with a deliberately broken API key; criterion 2's tenth attempt was one extra invalid request.
 
 | Criterion | Target | Trial 1 | Trial 2 | Trial 3 | Verdict |
 |---|---|---|---|---|---|
 | 1. One log record per request | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
-| 2. Invalid request: 400, 0 calls, 0 tokens | 10 of 10 attempts | 3/3 | 3/3 | 3/3 + 1 extra = 10/10 | MET |
-| 3. Successful requests ≤ 15 s (cache off) | 8 of 10 | 6/6 | 6/6 | 6/6 (18/18 total; slowest 8.1 s) | MET |
-| 4. model_calls and tokens valid; 0/0 on no-results | all records | 10/10 | 10/10 | 10/10 | MET |
-| 5. Broken key → one `model_error` record, error set, no fit card | 1 of 1 | — | — | 1/1 (separate run) | MET |
+| 2. Invalid → 400, model_calls 0, tokens 0 | 10 of 10 attempts | 3/3 | 3/3 | 3/3 (+1 extra = 10/10) | MET |
+| 3. Successful runs ≤ 15 s, cache off | 8 of 10 | 6/6 | 6/6 | 6/6 | MET (slowest 8.1 s, trial 1's cold start) |
+| 4. model_calls/tokens valid; 0/0 on no-results | all records | 10/10 | 10/10 | 10/10 | MET |
+| 5. Broken key → one `model_error` record, error set, no fit card | 1 of 1 | — | — | 1/1 | MET (log shows outcome "model_error", fit_card null; the failed call was counted as model_calls 1 with tokens 0) |
 
-**Instrumentation:** Each record in `logs/runs.jsonl` holds: timestamp, route, query, outcome (`ok` / `no_results` / `model_error` / `bad_request` / `crashed`), HTTP status, duration_ms, model_calls, tokens, results_found, selected item, and error. Ten entries from trial 1 (before the improvement):
+All five MET. The honest caveat: trial 1's first request (8.1 s) was the only one near any limit, and it pointed at a cold-start cost — which is what the improvement below went after.
+
+**The Improvement:** Trial 1's first request took 8.1 s while every warm request took 2.8–4.2 s, so I added a warm-up call in `serve.py` that initializes the model client at server start, before the first user request. One change, committed before the re-run, then all three trials again in the same format.
+
+| Criterion | Target | Trial 1 | Trial 2 | Trial 3 | Verdict |
+|---|---|---|---|---|---|
+| 1. One log record per request | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 2. Invalid → 400, 0/0 | 9 attempts this set | 3/3 | 3/3 | 3/3 | MET |
+| 3. Successful runs ≤ 15 s | 8 of 10 | 5/6 (one at 16.9 s) | 6/6 | 6/6 | MET overall (17/18), but see below |
+| 4. Fields valid, 0/0 on no-results | all records | 10/10 | 10/10 | 10/10 | MET |
+| 5. (not re-run — nothing in the change touches it) | — | — | — | — | — |
+
+**Did it help:** No. Trial 1 after the warm-up was slower than before it: 16.9, 11.1, 14.3, 4.3, 9.9, 3.0 s, against 8.1 s as the worst before. The warm-up ran (the server printed its confirmation), and trials 2 and 3 were back at ~3 s, so the slowdown can't be my client setup — requests 2 through 5 were slow too, which a cold client can't explain. The mechanism I can support from the log: service-side latency or backoff at that moment. The change didn't achieve what it targeted, one request even crossed my 15 s limit, and the honest conclusion is that cold-start cost was not the dominant source of latency variance — the model service's own variance is bigger than anything my code controls.
+
+**What's Still Broken:** Nothing is missed, so the targets are the thing to examine. Criterion 3's 15 s limit was set generously: 35 of 36 successful runs across both sets finished under 5 s, and the one exception (16.9 s) came from service-side variance. I'd tighten it to "8 of 10 under 5 s" — my data says that's where the system actually lives, and that target can genuinely fail. If this were real and I had another unit, the one thing I'd do first is log the two model calls' durations separately inside a run, because this unit showed I can see *that* a run was slow but not *which* call made it slow.
+
+**How I Used AI:** Two moments. (1) I pasted my five draft criteria into Claude and asked whether each could be checked by someone who couldn't ask me what I meant. It flagged that my criterion 4 said no-results requests "must record their model usage," which two scorers could read oppositely when the correct value is zero, and that criterion 5's "appropriate non-success HTTP response" would fail my own system by design, since the agent deliberately catches ModelUnavailable and returns 200 with a session error. I rewrote both to name the exact observables (0/0 recorded; outcome `model_error`). (2) When my after-improvement trial came back slower than before, I worked through the log with Claude to separate what the warm-up could explain from what it couldn't — requests 2–5 being slow ruled out client setup — and wrote the diagnosis myself from that.
